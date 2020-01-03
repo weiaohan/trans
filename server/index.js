@@ -214,40 +214,72 @@ var MD5 = function (string) {
 
     return temp.toLowerCase();
 }
+function funRequest(q_data) {
+    return new Promise((resolve, reject) => {
+        request(q_data, (err, response, body) => {
+            if (!err && response.statusCode==200) {
+                resolve(body);
+            } else {
+                reject(err);
+            }
+        });
+    });
+}
+
+function writeFile(fd, data) {
+    return new Promise((resolve, reject) => {
+        fs.writeFile(fd, data, {'flag': 'a'}, err => {
+            if (err) return reject(err);
+            else {
+                console.log(`write ${data}`)
+                resolve();
+            }
+        })
+    })
+}
+
+function fsOpen(path, result) {
+    return new Promise((resolve, reject) => {
+        fs.open(path, 'a', (err, fd) => {
+            if (err) {
+                reject(err);
+            } else {
+                let data = `*${result.src}*\t**${result.dst}**\n`;
+                writeFile(fd, data).then(() => {
+                    resolve()
+                })
+            }
+        })
+    })
+}
+
+function writeData(path ,result) {
+    return new Promise((resolve, reject) => {
+        fs.stat(path, (err, stat) => {
+            if (err) {
+                reject(err);
+            } else if (stat.isFile) {
+                fsOpen(path, result).then(() => {
+                    resolve()
+                });
+            }
+        });
+    });
+}
 
 const server = http.createServer((req, res) => {
     const url = req.url;
     const query = querystring.parse(url.split('?')[1]);
     const str = `${APPID}${query.src}${SALT}${KEY}`;
     const sign = MD5(str);
-    const q_data = `${b_url}?q=${query.src}&from=${FROM}&to=${TO}&appid=${APPID}&salt=${SALT}&sign=${sign}`
+    const q_data = `${b_url}?q=${query.src}&from=${FROM}&to=${TO}&appid=${APPID}&salt=${SALT}&sign=${sign}`;
     let result = '';
-    request(q_data, (err, response, body) => {
-        if (!err && response.statusCode === 200) {
-            result = JSON.parse(body).trans_result[0];
-            console.log(result);
-            fs.stat(PATH, (err, stats) => {
-                if (err) {
-                    return console.error('file not exit!');
-                } else if (stats.isFile()) {
-                    fs.open(PATH, 'a', (err, fd) => {
-                        if (err) {
-                            console.error(err);
-                        } else {
-                            let data = `*${result.src}*\t**${result.dst}**\n`;
-                            fs.writeFile(fd, data, { 'flag': 'a' }, err => {
-                                if (err) {
-                                    return console.error(err);
-                                } else {
-                                    res.end('添加成功');
-                                }
-                            });
-                        }
-                    });
-                }
-            })
-        }
-    })
+    funRequest(q_data).then(body => {
+        result = JSON.parse(body).trans_result[0];
+        writeData(PATH, result).then(() => {
+            res.end('添加成功');
+        });
+    });
 });
 
 server.listen(PORT)
