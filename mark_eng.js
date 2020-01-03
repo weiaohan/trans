@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         trans
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/weiaohan/trans
 // @version      0.1
 // @description  translate Chinese from English and write to a .md file.
 // @author       Hank
