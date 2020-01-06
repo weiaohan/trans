@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         trans
 // @namespace    https://github.com/weiaohan/trans
-// @version      0.1
+// @version      0.2
 // @description  translate Chinese from English and write to a .md file.
 // @author       Hank
 // @include      *
@@ -12,7 +12,8 @@
     'use strict';
     var getSelectText = function () {
         var text = window.getSelection().toString();
-        if (text && escape(text).indexOf('%u') < 0) {
+        var parten = /^([A-Za-z]+[\s\?\,\.\!\;]*)+$/
+        if (parten.test(text)) {
             var local_data = 'http://localhost:8011?src=' + text
             console.log(local_data)
             GM_xmlhttpRequest({

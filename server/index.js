@@ -238,13 +238,18 @@ function writeFile(fd, data) {
     })
 }
 
-function fsOpen(path, result) {
+function fsOpen(path, result, phrase_flag) {
     return new Promise((resolve, reject) => {
         fs.open(path, 'a', (err, fd) => {
+            let data = "";
             if (err) {
                 reject(err);
             } else {
-                let data = `*${result.src}*\t**${result.dst}**\n`;
+                if (phrase_flag) {
+                    data = `*${result.src}*\t**${result.dst}**\n`;
+                } else {
+                    data = result
+                }
                 writeFile(fd, data).then(() => {
                     resolve()
                 })
@@ -253,13 +258,13 @@ function fsOpen(path, result) {
     })
 }
 
-function writeData(path ,result) {
+function writeData(path ,result, phrase_flag) {
     return new Promise((resolve, reject) => {
         fs.stat(path, (err, stat) => {
             if (err) {
                 reject(err);
             } else if (stat.isFile) {
-                fsOpen(path, result).then(() => {
+                fsOpen(path, result, phrase_flag).then(() => {
                     resolve()
                 });
             }
@@ -270,16 +275,28 @@ function writeData(path ,result) {
 const server = http.createServer((req, res) => {
     const url = req.url;
     const query = querystring.parse(url.split('?')[1]);
-    const str = `${APPID}${query.src}${SALT}${KEY}`;
-    const sign = MD5(str);
-    const q_data = `${b_url}?q=${query.src}&from=${FROM}&to=${TO}&appid=${APPID}&salt=${SALT}&sign=${sign}`;
-    let result = '';
-    funRequest(q_data).then(body => {
-        result = JSON.parse(body).trans_result[0];
-        writeData(PATH, result).then(() => {
-            res.end('添加成功');
+    if (query.src.indexOf(" ") != -1) {
+        const str = `${APPID}${query.src}${SALT}${KEY}`;
+        const sign = MD5(str);
+        const q_data = `${b_url}?q=${query.src}&from=${FROM}&to=${TO}&appid=${APPID}&salt=${SALT}&sign=${sign}`;
+        let result = '';
+        funRequest(q_data).then(body => {
+            result = JSON.parse(body).trans_result[0];
+            writeData(PATH, result, true).then(() => {
+                res.end('添加成功');
+            });
         });
-    });
+    } else {
+        const exec = require('child_process').exec;
+        var arg1 = query.src;
+        exec('/Users/weiaohan/anaconda3/bin/python /Users/weiaohan/script/trans/server/use_mac_dic.py ' + arg1, (error, stdout, stderr) => {
+            if (error) {
+                console.log('error:' + error);
+            } else {
+                writeData(PATH, stdout, false)
+            }
+        });
+    }
 });
 
 server.listen(PORT)
